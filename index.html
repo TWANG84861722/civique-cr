@@ -505,6 +505,7 @@ function renderMe(){
   <div class="section-title">各主题掌握情况</div><div class="mastery" style="margin-top:0">${themes}</div>
   <div class="section-title">最近 7 天经验</div><div class="card"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:140px">${bars}</div></div>
   <div class="section-title">进度备份 · 换设备</div><div class="card" id="backupCard">${backupCard()}</div>
+  ${STATS_ON?`<p class="note" style="margin:12px 0 0">本站用 GoatCounter 匿名统计访问量和学习次数，不使用 cookie，不收集姓名、邮箱或 IP 等个人信息。你的学习进度只保存在你自己的浏览器里。</p>`:''}
   <div class="section-title">设置</div><div class="card">
    <div class="row"><div><b>同步</b><p>${{synced:'进度已保存到你的 Claude 账号，电脑和手机打开同一链接即可同步。',syncing:'正在同步…',error:'同步失败，进度暂时只保存在本设备，下次打开会再试。',local:inClaude?'未登录 Claude，进度只保存在本设备的浏览器里。':'进度保存在这个浏览器里。换设备或换浏览器时，用上面的「进度备份」导出、导入。'}[SYNC.state]}</p></div></div>
    ${voiceRow()}
@@ -592,6 +593,24 @@ function lessonItems(id){
   return items;
 }
 // 先下载本次练习用到的录音包并试解码一段，成功后再进入；失败时显示原因
+/* ============ 匿名访问统计（GoatCounter，仅 GitHub 网页版；不用 cookie，不收集个人信息） ============ */
+const STATS_ON=/\.github\.io$/.test(location.hostname);
+if(STATS_ON){const g=document.createElement('script');g.async=true;g.src='https://gc.zgo.at/count.js';
+  g.dataset.goatcounter='https://twang84861722.goatcounter.com/count';document.head.appendChild(g);}
+function track(path,title){
+  if(!STATS_ON)return;
+  const go=(n)=>{if(window.goatcounter&&window.goatcounter.count){try{window.goatcounter.count({path,title:title||path,event:true})}catch(e){}}else if(n<20)setTimeout(()=>go(n+1),500)};
+  go(0);
+}
+// 学习时长：在练习页面上、且最近 5 分钟内有操作，每满 5 分钟记一次
+let lastAct=Date.now(), activeSec=0;
+['click','keydown','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{lastAct=Date.now()},{passive:true,capture:true}));
+setInterval(()=>{
+  if(!L||document.visibilityState!=='visible'||Date.now()-lastAct>5*60e3)return;
+  activeSec+=30;
+  if(activeSec>=300){activeSec=0;track('study-5min','学习 5 分钟')}
+},30e3);
+
 /* ============ 浏览器「后退」：从练习回到首页，而不是离开网站 ============ */
 let HIST=false, IGNORE_POP=false;
 function pushLessonState(){if(HIST)return;try{history.pushState({civique:'lesson'},'');HIST=true}catch(e){}}
@@ -771,6 +790,7 @@ function finish(){
   const base=L.mode==='review'?15:L.mode==='miss'?8:10, perfect=L.wrong.size===0, xp=base+(perfect?5:0);
   const acc=Math.round(L.first/L.total*100), secs=Math.round((Date.now()-L.t0)/1000);
   award(xp);if(L.node)S.done[L.node]=true;save();
+  track(L.mode==='review'?'theme-challenge-done':L.mode==='miss'?'mistakes-practice-done':'lesson-done',L.mode==='review'?'完成主题挑战':L.mode==='miss'?'完成错题练习':'完成一课');
   const title=L.mode==='review'?'主题挑战完成！':L.mode==='miss'?'错题复习完成！':'课程完成！';
   $('#layer').innerHTML=`<div class="lesson"><div class="lbody"><div class="lin result">
     <div style="color:var(--gold);width:88px;height:88px">${IC.star}</div><h2 style="color:var(--gold)">${title}</h2>
@@ -789,6 +809,7 @@ function finishExam(){
   L.answers.forEach(a=>{if(a.pick===0)S.known[a.id]=true;else S.miss[a.id]=(S.miss[a.id]||0)+1});
   S.exams.push({d:dstr(),s:score});S.exams=S.exams.slice(-30);
   award(20);save();
+  track('exam-done','完成模拟考试');track(pass?'exam-pass':'exam-fail',pass?'模拟考试通过':'模拟考试未通过');
   const secs=Math.round((Date.now()-L.t0)/1000);
   $('#layer').innerHTML=`<div class="lesson"><div class="lbody"><div class="lin result">
     <div class="stamp" style="color:${pass?'var(--ok)':'var(--bad)'}">${pass?'Admis · 通过':'Non admis · 未通过'}</div>
