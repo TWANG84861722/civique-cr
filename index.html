@@ -239,7 +239,7 @@ const IC={
 
 /* ============ 状态（本机 + Claude 账号同步） ============ */
 const KEY='civique-cr-v1';
-const def=()=>({done:{},xp:0,streak:0,last:null,miss:{},known:{},exams:[],unlockAll:false,days:{},ts:0});
+const def=()=>({done:{},xp:0,streak:0,last:null,miss:{},known:{},exams:[],unlockAll:false,days:{},ts:0,lastBackup:0,snooze:0});
 function clean(s){
   if(!s||typeof s!=='object'||Array.isArray(s))return def();
   const obj=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
@@ -253,7 +253,8 @@ function clean(s){
     exams:(Array.isArray(s.exams)?s.exams:[]).filter(e=>e&&typeof e.d==='string'&&typeof e.s==='number').slice(-30).map(e=>({d:e.d,s:e.s})),
     unlockAll:s.unlockAll===true,
     days:pick(s.days,v=>typeof v==='number'&&isFinite(v)&&v>=0),
-    ts:num(s.ts), resetAt:num(s.resetAt)||undefined
+    ts:num(s.ts), resetAt:num(s.resetAt)||undefined,
+    lastBackup:num(s.lastBackup), snooze:num(s.snooze)
   };
 }
 let S=def();
@@ -281,6 +282,7 @@ function merge(a,b){
   m.miss=Object.assign({},newer.miss);m.unlockAll=newer.unlockAll;
   m.resetAt=Math.max(a.resetAt||0,b.resetAt||0)||undefined;
   m.ts=Math.max(a.ts||0,b.ts||0);
+  m.lastBackup=Math.max(a.lastBackup,b.lastBackup);m.snooze=Math.max(a.snooze,b.snooze);
   return m;
 }
 async function pull(){
@@ -446,7 +448,7 @@ function renderLearn(){
   let h=topBar()+`<div class="mastery">
     <div class="mrow"><b>题库掌握</b><span>${k} / ${total} 题</span></div><div class="bar"><i style="width:${k/total*100}%"></i></div>
     <div class="mrow"><b>今日目标</b><span>${Math.min(today,DAILY)} / ${DAILY} XP</span></div><div class="bar"><i style="width:${Math.min(100,today/DAILY*100)}%;background:var(--gold)"></i></div>
-  </div>`;
+  </div>${backupBanner()}`;
   let gi=0;
   DATA.forEach((th,ti)=>{
     const pct=Math.round(knownIn(ti)/th.q.length*100);
@@ -532,8 +534,32 @@ function importState(txt){
   const before=knownAll();S=merge(S,o.state);save();
   return `导入成功：已和本机进度合并。已掌握题目 ${before} → ${knownAll()}。`;
 }
+// 持久保存：请浏览器不要自动清除本站数据（Claude 版有账号同步，不需要）
+let PERSIST=null;  // true / false / null(不支持)
+if(!inClaude&&navigator.storage&&navigator.storage.persist){
+  navigator.storage.persisted().then(p=>p?true:navigator.storage.persist()).then(r=>{PERSIST=!!r;if(!L&&tab==='me')renderApp()}).catch(()=>{});
+}
+const DAY=864e5;
+function needBackup(){
+  if(inClaude)return false;
+  const now=Date.now();
+  if(S.snooze&&now<S.snooze)return false;
+  if(!S.lastBackup)return knownAll()>=10;
+  return now-S.lastBackup>7*DAY&&S.ts>S.lastBackup;
+}
+function markBackup(){S.lastBackup=Date.now();S.snooze=0;save()}
+function backupBanner(){
+  if(!needBackup())return '';
+  const days=S.lastBackup?Math.floor((Date.now()-S.lastBackup)/DAY):0;
+  return `<div class="card" style="margin-top:16px;border-color:var(--gold);display:grid;gap:10px">
+    <b style="font-family:var(--display)">${S.lastBackup?`已经 ${days} 天没备份进度了`:'备份一下学习进度吧'}</b>
+    <p class="note" style="margin:0">进度只保存在这个浏览器里。复制进度码发到微信存着，换手机或清理浏览器后也能找回。</p>
+    <div class="fbrow" style="flex-wrap:wrap"><button class="btn small" id="remindCopy">复制进度码</button><button class="btn ghost small" id="remindLater">3 天后再提醒</button></div></div>`;
+}
 function backupCard(msg){
-  return `<p class="note" style="margin:0 0 12px">换手机或电脑时：在旧设备点「复制进度码」，用微信或备忘录发给自己；在新设备点「粘贴进度码」导入。导入会和新设备上已有的进度<b>合并</b>，不会覆盖。</p>
+  const last=S.lastBackup?new Date(S.lastBackup).toLocaleDateString('zh-CN'):'还没有备份过';
+  const per=inClaude?'':`<p class="note" style="margin:0 0 6px">持久保存：${PERSIST===true?'✅ 已开启，浏览器不会自动清除进度':PERSIST===false?'⚠️ 浏览器没有同意（iPhone 上从主屏幕图标打开更安全）':'这个浏览器不支持'}</p>`;
+  return `${per}<p class="note" style="margin:0 0 6px">上次备份：${last}</p><p class="note" style="margin:0 0 12px">换手机或电脑时：在旧设备点「复制进度码」，用微信或备忘录发给自己；在新设备点「粘贴进度码」导入。导入会和新设备上已有的进度<b>合并</b>，不会覆盖。</p>
    <div class="fbrow" style="flex-wrap:wrap"><button class="btn small" id="copyCode">复制进度码</button><button class="btn ghost small" id="pasteCode">粘贴进度码</button></div>
    <div class="fbrow" style="flex-wrap:wrap;margin-top:10px">${inClaude?'':'<button class="btn ghost small" id="saveFile">下载进度文件</button>'}<label class="btn ghost small" for="loadFile" style="cursor:pointer">读取进度文件</label><input type="file" id="loadFile" accept=".json,application/json,text/plain" hidden></div>
    <div id="codeBox"></div>
@@ -549,7 +575,7 @@ function backupClick(t){
   if(t.id==='copyCode'){
     const code=stateCode();
     const box=`<textarea id="codeText" readonly style="width:100%;height:96px;margin-top:12px;font:12px/1.4 ui-monospace,Menlo,monospace;border:2px solid var(--line);border-radius:12px;padding:8px;background:var(--bg);color:var(--ink)">${code}</textarea>`;
-    const done=ok=>{setBackup(ok?'进度码已复制，发给自己（微信/备忘录）即可。':'自动复制没成功，请长按下面的文字全选后复制。',box);if(!ok){const ta=$('#codeText');ta.focus();ta.select()}};
+    const done=ok=>{if(ok)markBackup();setBackup(ok?'进度码已复制，发给自己（微信/备忘录）即可。':'自动复制没成功，请长按下面的文字全选后复制。',box);if(!ok){const ta=$('#codeText');ta.focus();ta.select();ta.addEventListener('copy',()=>{markBackup();setBackup('已复制，记得发给自己保存。')},{once:true})}};
     try{navigator.clipboard.writeText(code).then(()=>done(true),()=>done(false))}catch(e){done(false)}
     return true;
   }
@@ -561,7 +587,7 @@ function backupClick(t){
   if(t.id==='saveFile'){
     try{const b=new Blob([packState()],{type:'application/json'}),a=document.createElement('a');
       a.href=URL.createObjectURL(b);a.download='civique-progress-'+dstr()+'.json';document.body.appendChild(a);a.click();a.remove();
-      setBackup('进度文件已下载，在「下载」文件夹里。把它发到另一台设备，再点「读取进度文件」。');
+      markBackup();setBackup('进度文件已下载，在「下载」文件夹里。把它发到另一台设备，再点「读取进度文件」。');
     }catch(e){setBackup('下载失败，请改用「复制进度码」。')}
     return true;
   }
@@ -712,6 +738,8 @@ document.addEventListener('click',ev=>{
   if(!L){
     if(voiceClick(t))return;
     if(backupClick(t))return;
+    if(t.id==='remindLater'){S.snooze=Date.now()+3*DAY;save();renderApp();return}
+    if(t.id==='remindCopy'){tab='me';renderApp();window.scrollTo&&window.scrollTo(0,document.body.scrollHeight);backupClick({id:'copyCode',dataset:{}});return}
     if(t.dataset.tab){tab=t.dataset.tab;renderApp();window.scrollTo(0,0);return}
     if(t.dataset.node){const id=t.dataset.node;if(!unlocked(id))return;prepareAudio({mode:id.endsWith('r')?'review':'lesson',node:id,items:lessonItems(id)});return}
     if(t.id==='practiceMiss'){const ids=shuffle(Object.keys(S.miss).filter(id=>Q[id])).slice(0,10);prepareAudio({mode:'miss',items:ids.map(id=>({t:'qcm',id}))});return}
