@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Civique CR</title>
 <meta name="theme-color" content="#1F3C88">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,6 +38,11 @@
   --bad:#FF6B62; --bad-deep:#C0463F; --bad-bg:#3F1A1A;
   --gold:#F2B637; --flame:#FF8A45; --on-accent:#0E1224;
 }
+/* base-reset */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent}
