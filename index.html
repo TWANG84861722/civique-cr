@@ -586,7 +586,20 @@ function lessonItems(id){
   return items;
 }
 // 先下载本次练习用到的录音包并试解码一段，成功后再进入；失败时显示原因
+/* ============ 浏览器「后退」：从练习回到首页，而不是离开网站 ============ */
+let HIST=false, IGNORE_POP=false;
+function pushLessonState(){if(HIST)return;try{history.pushState({civique:'lesson'},'');HIST=true}catch(e){}}
+function popLessonState(){if(!HIST)return;HIST=false;IGNORE_POP=true;try{history.back()}catch(e){IGNORE_POP=false}}
+window.addEventListener('popstate',()=>{
+  if(IGNORE_POP){IGNORE_POP=false;return}
+  if(!HIST)return;
+  HIST=false;
+  if(L&&L.mode==='exam'&&!L.backWarned&&!$('#retryExam')){L.backWarned=true;pushLessonState();audioNote('考试进行中，再按一次「后退」会退出考试',true);return}
+  if(L)closeLesson(true);else{$('#layer').innerHTML='';renderApp()}
+});
+
 function prepareAudio(o){
+  pushLessonState();
   const tis=[...new Set(o.items.filter(it=>it.t==='qcm').map(it=>Q[it.id].ti))];
   if(!tis.length||tis.every(ti=>CLIP_LOAD[ti]&&CLIPS[ti+'-0-q']))return startLesson(o);
   actx();   // 在点击时唤醒音频，后面才能直接播放
@@ -603,7 +616,7 @@ function prepareAudio(o){
     <p id="dltext" style="margin:0;color:var(--muted);font-variant-numeric:tabular-nums">连接中…</p>
   </div></div><div class="lfoot"><div class="lfin"><button class="btn ghost wide" id="dlCancel">取消</button></div></div></div>`;
   let cancelled=false;
-  $('#dlCancel').onclick=()=>{cancelled=true;$('#layer').innerHTML=''};
+  $('#dlCancel').onclick=()=>{cancelled=true;$('#layer').innerHTML='';popLessonState()};
   Promise.all(tis.map(ti=>loadClips(ti,draw))).then(async()=>{
     const k=tis[0]+'-0-q';let buf=null;
     try{buf=await clipBuf(k)}catch(e){throw new Error('录音已下载，但浏览器无法解码：'+((e&&e.message)||e||'未知错误'))}
@@ -621,12 +634,13 @@ function prepareAudio(o){
   });
 }
 function startLesson(o){
+  pushLessonState();
   L={...o,queue:o.items.slice(),total:o.items.length,right:0,first:0,wrong:new Set(),t0:Date.now(),answers:[]};
   document.body.style.overflow='hidden';
   if(L.mode==='exam'){L.deadline=Date.now()+EXAM_SECS*1000;L.tick=setInterval(tickExam,1000)}
   next();
 }
-function closeLesson(){stopAudio();if(L&&L.tick)clearInterval(L.tick);L=null;document.body.style.overflow='';if(canSpeak)try{speechSynthesis.cancel()}catch(e){};renderApp()}
+function closeLesson(fromBack){if(!fromBack)popLessonState();stopAudio();if(L&&L.tick)clearInterval(L.tick);L=null;document.body.style.overflow='';if(canSpeak)try{speechSynthesis.cancel()}catch(e){};renderApp()}
 function next(){
   if(!L.queue.length)return L.mode==='exam'?finishExam():finish();
   stopAudio();
