@@ -517,7 +517,7 @@ function renderMe(){
   </div></div>`;
 }
 
-/* ============ 进度备份：进度码 / 进度文件 ============ */
+/* ============ 进度备份：进度码 ============ */
 const inClaude=!!(window.claude&&window.claude.use);
 function packState(){const j=JSON.stringify({app:'civique-cr',v:1,at:new Date().toISOString(),state:S});return j}
 function stateCode(){return 'CIVIQUE1:'+btoa(unescape(encodeURIComponent(packState())))}
@@ -531,7 +531,7 @@ function unpack(txt){
   return o;
 }
 function importState(txt){
-  let o;try{o=unpack(txt)}catch(e){const m=e&&e.message||'';return '读取失败：'+(/Civique/.test(m)?m:'内容不完整或格式不对')+'。请确认复制了完整的进度码（以 CIVIQUE1: 开头），或选择正确的进度文件。'}
+  let o;try{o=unpack(txt)}catch(e){const m=e&&e.message||'';return '读取失败：'+(/Civique/.test(m)?m:'内容不完整或格式不对')+'。请确认复制了完整的进度码（以 CIVIQUE1: 开头）。'}
   const before=knownAll();S=merge(S,o.state);save();
   return `导入成功：已和本机进度合并。已掌握题目 ${before} → ${knownAll()}。`;
 }
@@ -562,16 +562,10 @@ function backupCard(msg){
   const per=inClaude?'':`<p class="note" style="margin:0 0 6px">持久保存：${PERSIST===true?'✅ 已开启，浏览器不会自动清除进度':PERSIST===false?'⚠️ 浏览器没有同意（iPhone 上从主屏幕图标打开更安全）':'这个浏览器不支持'}</p>`;
   return `${per}<p class="note" style="margin:0 0 6px">上次备份：${last}</p><p class="note" style="margin:0 0 12px">换手机或电脑时：在旧设备点「复制进度码」，用微信或备忘录发给自己；在新设备点「粘贴进度码」导入。导入会和新设备上已有的进度<b>合并</b>，不会覆盖。</p>
    <div class="fbrow" style="flex-wrap:wrap"><button class="btn small" id="copyCode">复制进度码</button><button class="btn ghost small" id="pasteCode">粘贴进度码</button></div>
-   <div class="fbrow" style="flex-wrap:wrap;margin-top:10px">${inClaude?'':'<button class="btn ghost small" id="saveFile">下载进度文件</button>'}<label class="btn ghost small" for="loadFile" style="cursor:pointer">读取进度文件</label><input type="file" id="loadFile" accept=".json,application/json,text/plain" hidden></div>
    <div id="codeBox"></div>
    ${msg?`<p class="note" style="margin:12px 0 0;color:var(--ink)" role="status">${esc(msg)}</p>`:''}`;
 }
 function setBackup(msg,extra=''){const c=$('#backupCard');if(c){c.innerHTML=backupCard(msg);if(extra)$('#codeBox').innerHTML=extra}}
-document.addEventListener('change',e=>{
-  if(e.target&&e.target.id==='loadFile'&&e.target.files&&e.target.files[0]){
-    const r=new FileReader();r.onload=()=>{const m=importState(r.result);renderApp();tab='me';renderApp();setBackup(m)};r.onerror=()=>setBackup('文件读取失败，请重试。');r.readAsText(e.target.files[0]);
-  }
-});
 function backupClick(t){
   if(t.id==='copyCode'){
     const code=stateCode();
@@ -585,13 +579,6 @@ function backupClick(t){
     $('#codeIn').focus();return true;
   }
   if(t.id==='doImport'){const m=importState($('#codeIn').value);renderApp();setBackup(m);return true}
-  if(t.id==='saveFile'){
-    try{const b=new Blob([packState()],{type:'application/json'}),a=document.createElement('a');
-      a.href=URL.createObjectURL(b);a.download='civique-progress-'+dstr()+'.json';document.body.appendChild(a);a.click();a.remove();
-      markBackup();setBackup('进度文件已下载，在「下载」文件夹里。把它发到另一台设备，再点「读取进度文件」。');
-    }catch(e){setBackup('下载失败，请改用「复制进度码」。')}
-    return true;
-  }
   return false;
 }
 
