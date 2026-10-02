@@ -197,6 +197,16 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
 .anote{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;max-width:calc(100% - 32px);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:99px;font-size:13px;font-weight:700;transition:opacity .3s;pointer-events:none}
 .anote.bad{background:var(--bad);color:#fff;border-radius:12px}
 .anote.hide{opacity:0}
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(10,12,30,.5);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;max-height:90%;overflow:auto;border-radius:20px 20px 0 0;padding:20px 20px calc(24px + env(safe-area-inset-bottom,0px))}
+.sheet h2{font-size:22px;margin-bottom:4px}
+.sheet .sub{color:var(--muted);margin:0 0 12px;font-size:14px}
+.fbtypes{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.chipbtn{border:2px solid var(--line);border-radius:99px;padding:6px 12px;font-size:13px;font-weight:700;background:var(--surface);color:var(--ink)}
+.chipbtn.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.fblink{font-size:13px;color:var(--muted);text-decoration:underline;justify-self:start;padding:4px 0}
+.fbta{width:100%;height:110px;font:inherit;font-size:15px;padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
+a.btn{text-decoration:none}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -507,6 +517,7 @@ function renderMe(){
   <div class="kv"><div><b>${S.xp}</b><span>总经验</span></div><div><b>${streakNow()}</b><span>连续天数</span></div><div><b>${knownAll()}</b><span>已掌握题目</span></div></div>
   <div class="section-title">各主题掌握情况</div><div class="mastery" style="margin-top:0">${themes}</div>
   <div class="section-title">最近 7 天经验</div><div class="card"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:140px">${bars}</div></div>
+  <div class="section-title">反馈</div><div class="card"><p class="note" style="margin:0 0 10px">发现录音读错、答案不对或页面出错？告诉作者。做题时也可以在每道题下面点「这题有问题？」。</p><button class="btn ghost small" id="openFb">反馈问题</button></div>
   <div class="section-title">进度备份 · 换设备</div><div class="card" id="backupCard">${backupCard()}</div>
   ${STATS_ON?`<p class="note" style="margin:12px 0 0">本站用 GoatCounter 匿名统计访问量和学习次数，不使用 cookie，不收集姓名、邮箱或 IP 等个人信息。你的学习进度只保存在你自己的浏览器里。</p>`:''}
   <div class="section-title">设置</div><div class="card">
@@ -785,7 +796,7 @@ function check(){
   $('#foot').innerHTML=`<div class="lfin">
     <div class="fbt">${ok?IC.check:IC.x}${ok?praise:'正确答案'}</div>
     ${q&&!ok?`<div class="fba" lang="fr">${esc(q.o[0])}</div>`:''}
-    ${q?`<div class="fbe">${esc(q.e)}</div>`:(L.mm?`<div class="fbe">配对中出错 ${L.mm} 次</div>`:'')}
+    ${q?`<div class="fbe">${esc(q.e)}</div><button class="fblink" data-report="${q.id}">这题有问题？</button>`:(L.mm?`<div class="fbe">配对中出错 ${L.mm} 次</div>`:'')}
     <div class="fbrow">${q?`<button class="speak" data-clip="${q.id}-q,${q.id}-a" aria-label="朗读题目和答案">${IC.speak}</button>`:''}
     <button class="btn wide ${ok?'okb':'badb'}" id="cont" style="flex:1">继续</button></div></div>`;
   $('#cont').focus({preventScroll:true});
@@ -839,9 +850,64 @@ function finishExam(){
       <div class="m-q" lang="fr">${esc(q.q)}</div>
       <div class="m-y" lang="fr">你的答案：${a.pick==null?'未作答':esc(q.o[a.pick])}</div>
       <div class="m-a" lang="fr">正确答案：${esc(q.o[0])}</div>
-      <div class="note">${esc(q.e)}</div></div>`}).join('')}</div>`:''}
+      <div class="note">${esc(q.e)}</div><button class="fblink" data-report="${q.id}">这题有问题？</button></div>`}).join('')}</div>`:''}
   </div></div><div class="lfoot"><div class="lfin"><button class="btn wide" id="retryExam">完成</button></div></div></div>`;
 }
+
+/* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
+const REPO='https://github.com/TWANG84861722/civique-cr';
+const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
+const BUILD='2026-10-02 08:01';
+const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
+let FB=null;
+function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
+function fbTitle(){const q=FB.qid&&Q[FB.qid];return `[${FB.type}] `+(q?`${q.id} ${q.q.slice(0,50)}`:(FB.text||'').slice(0,50))}
+function fbBody(){
+  const q=FB.qid&&Q[FB.qid];
+  const l=[`类型：${FB.type}`,`描述：${FB.text.trim()||'（未填写）'}`];
+  if(q)l.push('',`题目编号：${q.id}`,`题目：${q.q}`,`正确答案：${q.o[0]}`);
+  l.push('',`网页：${location.protocol==='file:'?'本地文件':location.hostname} · 版本 ${BUILD}`,`设备：${navigator.userAgent}`);
+  return l.join('\n');
+}
+function fbLinks(){
+  const gh=REPO+'/issues/new?title='+encodeURIComponent(fbTitle())+'&body='+encodeURIComponent(fbBody());
+  const ml='mailto:'+MAIL+'?subject='+encodeURIComponent('Civique 反馈 '+fbTitle())+'&body='+encodeURIComponent(fbBody());
+  const a=$('#fbGh'),b=$('#fbMail');if(a)a.href=gh;if(b)b.href=ml;
+}
+function drawFeedback(msg){
+  const q=FB.qid&&Q[FB.qid];
+  let el=$('#fbLayer');if(!el){el=document.createElement('div');el.id='fbLayer';document.body.appendChild(el)}
+  el.innerHTML=`<div class="scrim" id="fbScrim"><div class="sheet" role="dialog" aria-label="反馈问题">
+   <h2>反馈问题</h2>${q?`<p class="sub" lang="fr">${esc(q.id)} · ${esc(q.q)}</p>`:'<p class="sub">告诉作者哪里不对，或者你的建议。</p>'}
+   <div class="fbtypes">${FB_TYPES.map(t=>`<button class="chipbtn ${t===FB.type?'on':''}" data-fbtype="${t}">${t}</button>`).join('')}</div>
+   <label for="fbText" class="note" style="display:block;margin-bottom:6px">具体是什么问题？（可以不填）</label>
+   <textarea id="fbText" class="fbta" placeholder="例如：录音把 répudiation 读得很奇怪">${esc(FB.text)}</textarea>
+   <div style="display:grid;gap:10px;margin-top:14px">
+     <a class="btn wide" id="fbGh" href="#" target="_blank" rel="noopener">在 GitHub 提交（需要 GitHub 账号，内容公开）</a>
+     <a class="btn ghost wide" id="fbMail" href="#">发邮件给作者</a>
+     <button class="btn ghost wide" id="fbCopy">复制反馈内容（再发微信给作者）</button>
+   </div>
+   <p class="note" style="margin:12px 0 0">作者邮箱：<span style="user-select:all;color:var(--ink)">${MAIL}</span>。如果点「发邮件」没有反应，可以复制这个地址，自己写邮件。请不要在反馈里写个人信息。</p>
+   ${msg?`<p class="note" role="status" style="margin:10px 0 0;color:var(--ok);font-weight:700">${esc(msg)}</p>`:''}
+   <button class="btn ghost wide" id="fbClose" style="margin-top:14px">关闭</button></div></div>`;
+  fbLinks();
+}
+document.addEventListener('input',e=>{if(e.target&&e.target.id==='fbText'&&FB){FB.text=e.target.value;fbLinks()}});
+document.addEventListener('click',ev=>{
+  if(ev.target&&ev.target.id==='fbScrim'){$('#fbLayer').innerHTML='';FB=null;return}
+  const t=ev.target.closest('button');if(!t)return;
+  if(t.dataset.report!=null){ev.stopPropagation();openFeedback(t.dataset.report);return}
+  if(t.id==='openFb'){openFeedback(null);return}
+  if(!FB)return;
+  if(t.dataset.fbtype){FB.type=t.dataset.fbtype;drawFeedback();return}
+  if(t.id==='fbClose'){$('#fbLayer').innerHTML='';FB=null;return}
+  if(t.id==='fbCopy'){
+    const txt='Civique 反馈\n'+fbBody();
+    const ok=()=>drawFeedback('已复制。打开微信粘贴发给作者即可。');
+    const fail=()=>{drawFeedback('自动复制没成功，请长按下面的文字全选后复制。');const ta=document.createElement('textarea');ta.className='fbta';ta.readOnly=true;ta.value=txt;ta.style.marginTop='10px';$('#fbClose').before(ta);ta.focus();ta.select()};
+    try{navigator.clipboard.writeText(txt).then(ok,fail)}catch(e){fail()}
+  }
+},true);
 
 window.addEventListener('error',e=>{if(!$('#root .tabs')&&!L)showCrash(e.error||e.message)});
 renderApp();
