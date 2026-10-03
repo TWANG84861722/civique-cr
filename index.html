@@ -399,12 +399,25 @@ function loadClips(ti,onProg){
   if(onProg)CLIP_LOAD[ti].then(onProg,()=>{});
   return CLIP_LOAD[ti];
 }
-// Web Audio：在点击时创建/唤醒，之后的解码和播放不受自动播放限制，也不依赖媒体地址
+// Web Audio：在点击时创建/唤醒。iPhone 切到后台再回来后，音频通道会停在 interrupted/suspended，
+// 恢复不了就在点击时新建一个（点击中新建的一定能播放）；已解码的录音可以继续用
+let AUDIO_STALE=false;
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){AUDIO_STALE=true;return}
+  if(ACTX&&ACTX.state!=='running'){try{ACTX.resume()}catch(e){}}
+});
+window.addEventListener('pageshow',()=>{AUDIO_STALE=true});
 function actx(){
   try{
-    if(!ACTX){const C=window.AudioContext||window.webkitAudioContext;if(C)ACTX=new C();
-      if(navigator.audioSession)navigator.audioSession.type='playback'}  // iPhone 静音键打开时也能播放
-    if(ACTX&&ACTX.state==='suspended')ACTX.resume();
+    const C=window.AudioContext||window.webkitAudioContext;
+    if(ACTX&&ACTX.state!=='running'&&(AUDIO_STALE||ACTX.state==='interrupted'||ACTX.state==='closed')){
+      try{ACTX.close()}catch(e){}
+      ACTX=null;
+    }
+    AUDIO_STALE=false;
+    if(!ACTX&&C){ACTX=new C();
+      try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}}  // iPhone 静音键打开时也能播放
+    if(ACTX&&ACTX.state!=='running'){try{ACTX.resume()}catch(e){}}
   }catch(e){ACTX=null}
   return ACTX;
 }
@@ -857,7 +870,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-02 20:35';
+const BUILD='2026-10-03 07:41';
 const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
