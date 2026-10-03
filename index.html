@@ -363,6 +363,10 @@ const VOICE_TIP=`这台设备上没有高质量的法语语音，所以听起来
 · <b>Android</b>：设置 → 无障碍 → 文字转语音 → 安装法语语音数据<br>
 · <b>电脑上的 Chrome</b>：通常已经自带 Google français，在上面的列表里选它即可<br>
 下载后重新打开这个页面，选择标有「推荐」的语音。`;
+// 进入题目时自动朗读（按设备保存，默认开）
+let AUTOPLAY=true;
+try{AUTOPLAY=localStorage.getItem('civique-autoplay')!=='0'}catch(e){}
+function setAutoplay(v){AUTOPLAY=v;try{localStorage.setItem('civique-autoplay',v?'1':'0')}catch(e){}}
 function voiceRow(){
   if(!canSpeak)return `<div class="row"><div><b>法语语音</b><p>这个浏览器不支持朗读。</p></div></div>`;
   const cur=pickVoice(), good=cur&&vScore(cur)>=20;
@@ -535,6 +539,7 @@ function renderMe(){
   ${STATS_ON?`<p class="note" style="margin:12px 0 0">本站用 GoatCounter 匿名统计访问量和学习次数，不使用 cookie，不收集姓名、邮箱或 IP 等个人信息。你的学习进度只保存在你自己的浏览器里。</p>`:''}
   <div class="section-title">设置</div><div class="card">
    <div class="row"><div><b>同步</b><p>${{synced:'进度已保存到你的 Claude 账号，电脑和手机打开同一链接即可同步。',syncing:'正在同步…',error:'同步失败，进度暂时只保存在本设备，下次打开会再试。',local:inClaude?'未登录 Claude，进度只保存在本设备的浏览器里。':'进度保存在这个浏览器里。换设备或换浏览器时，用上面的「进度备份」导出、导入。'}[SYNC.state]}</p></div></div>
+   <div class="row"><div><b>进入题目时自动朗读</b><p>关闭后需要点 🔊 才会播放</p></div><button class="switch" id="autoSw" role="switch" aria-checked="${AUTOPLAY}" aria-label="进入题目时自动朗读"></button></div>
    ${voiceRow()}
    <div class="row"><div><b>解锁全部关卡</b><p>想直接练某个主题时打开</p></div><button class="switch" id="unlockSw" role="switch" aria-checked="${S.unlockAll}" aria-label="解锁全部关卡"></button></div>
    <div class="row" id="resetRow"><div><b>重置进度</b><p>清除所有经验、关卡、错题和考试记录</p></div><button class="btn ghost small" id="resetBtn">重置</button></div>
@@ -739,6 +744,7 @@ function renderEx(){
     ${L.showZh?`<p class="zh">${esc(q.zh)}</p>`:`<button class="zhbtn" id="showZh">显示中文题意</button>`}
     <div class="opts">${L.order.map((oi,k)=>`<button class="opt" lang="fr" data-opt="${oi}"><span class="k">${'ABCD'[k]}</span><span>${esc(q.o[oi])}</span></button>`).join('')}</div>`,
     `<div class="lfin"><button class="btn wide" id="check" disabled>${exam?(L.queue.length?'下一题':'交卷'):'检查'}</button></div>`);
+  if(AUTOPLAY)playClips([q.id+'-q']);
 }
 function drawMatch(){
   const b=(side,arr,sel)=>arr.map(x=>`<button class="mt ${L.gone.has(x.i)?'gone':''} ${sel===x.i?'sel':''}" ${side==='L'?'lang="fr"':''} data-m="${side}${x.i}" ${L.gone.has(x.i)?'disabled':''}>${esc(x.t)}</button>`).join('');
@@ -756,6 +762,7 @@ document.addEventListener('click',ev=>{
     if(t.dataset.node){const id=t.dataset.node;if(!unlocked(id))return;prepareAudio({mode:id.endsWith('r')?'review':'lesson',node:id,items:lessonItems(id)});return}
     if(t.id==='practiceMiss'){const ids=shuffle(Object.keys(S.miss).filter(id=>Q[id])).slice(0,10);prepareAudio({mode:'miss',items:ids.map(id=>({t:'qcm',id}))});return}
     if(t.id==='startExam'){const items=[];EXAM_MIX.forEach((n,ti)=>shuffle(DATA[ti].q.map(q=>q.id)).slice(0,n).forEach(id=>items.push({t:'qcm',id})));prepareAudio({mode:'exam',items:shuffle(items)});return}
+    if(t.id==='autoSw'){setAutoplay(!AUTOPLAY);renderApp();return}
     if(t.id==='unlockSw'){S.unlockAll=!S.unlockAll;save();renderApp();return}
     if(t.id==='resetBtn'){$('#resetRow').innerHTML=`<div><b>确定要清除全部进度吗？</b><p>这一步无法撤销</p></div><div class="fbrow"><button class="btn ghost small" id="resetNo">取消</button><button class="btn danger small" id="resetYes">清除</button></div>`;return}
     if(t.id==='resetNo'){renderApp();return}
@@ -870,7 +877,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-03 07:41';
+const BUILD='2026-10-03 08:28';
 const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
