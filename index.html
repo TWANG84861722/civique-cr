@@ -414,7 +414,8 @@ window.addEventListener('pageshow',()=>{AUDIO_STALE=true});
 function actx(){
   try{
     const C=window.AudioContext||window.webkitAudioContext;
-    if(ACTX&&ACTX.state!=='running'&&(AUDIO_STALE||ACTX.state==='interrupted'||ACTX.state==='closed')){
+    // 去过后台：iPhone 有时显示 running 却没有声音，所以一律重建；没去过后台但不在运行，也重建
+    if(ACTX&&(AUDIO_STALE||ACTX.state==='interrupted'||ACTX.state==='closed')){
       try{ACTX.close()}catch(e){}
       ACTX=null;
     }
@@ -877,7 +878,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-03 09:38';
+const BUILD='2026-10-03 14:35';
 const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
