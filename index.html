@@ -54,6 +54,10 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:12px;border-bottom:2px solid var(--line)}
 .brand{font-family:var(--display);font-weight:800;font-size:20px;display:flex;align-items:baseline;gap:6px}
 .brand i{font-style:normal;display:inline-block;width:8px;height:18px;border-radius:2px;background:linear-gradient(90deg,var(--accent) 0 33%,var(--surface) 33% 66%,var(--red) 66%);border:1px solid var(--line);align-self:center}
+.langbar{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 14px;border:2px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);text-decoration:none}
+.langbar b{font-family:var(--display);white-space:nowrap}
+.langbar span{flex:1;font-size:13px;color:var(--muted)}
+.langbar i{font-style:normal;font-weight:800;color:var(--accent)}
 .brand small{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.06em}
 .stats{display:flex;gap:14px;align-items:center}
 .stat{display:flex;align-items:center;gap:4px;font-weight:700;font-variant-numeric:tabular-nums}
@@ -605,7 +609,7 @@ function topBar(){
 
 function renderLearn(){
   const total=Object.keys(Q).length, k=knownAll(), today=S.days[dstr()]||0, cur=currentId();
-  let h=topBar()+`<div class="mastery">
+  let h=topBar()+(STATS_ON?`<a class="langbar" href="fr/" lang="fr"><b>Version française</b><span>法语界面和解释，可以分享给不懂中文的朋友</span><i>→</i></a>`:'')+`<div class="mastery">
     <div class="mrow"><b>题库掌握</b><span>${k} / ${total} 题</span></div><div class="bar"><i style="width:${k/total*100}%"></i></div>
     <div class="mrow"><b>今日目标</b><span>${Math.min(today,DAILY)} / ${DAILY} XP</span></div><div class="bar"><i style="width:${Math.min(100,today/DAILY*100)}%;background:var(--gold)"></i></div>
   </div>${backupBanner()}`;
@@ -667,7 +671,6 @@ function renderMe(){
   <div class="section-title">各主题掌握情况</div><div class="mastery" style="margin-top:0">${themes}</div>
   <div class="section-title">最近 7 天经验</div><div class="card"><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;align-items:end;height:140px">${bars}</div></div>
   <div class="section-title">反馈</div><div class="card"><p class="note" style="margin:0 0 10px">发现录音读错、答案不对或页面出错？告诉作者。做题时也可以在每道题下面点「这题有问题？」。</p><button class="btn ghost small" id="openFb">反馈问题</button></div>
-  ${STATS_ON?`<div class="section-title">其他语言</div><div class="card"><div class="row"><div><b>Version française</b><p>界面和解释都是法语，可以分享给不懂中文的朋友。</p></div><a class="btn ghost small" href="fr/">打开</a></div></div>`:''}
   <div class="section-title">进度备份 · 换设备</div><div class="card" id="backupCard">${backupCard()}</div>
   ${STATS_ON?`<p class="note" style="margin:12px 0 0">本站用 GoatCounter 匿名统计访问量和学习次数，不使用 cookie，不收集姓名、邮箱或 IP 等个人信息。你的学习进度只保存在你自己的浏览器里。</p>`:''}
   <div class="section-title">设置</div><div class="card">
@@ -1015,7 +1018,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-05 19:56';
+const BUILD='2026-10-05 19:59';
 const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
