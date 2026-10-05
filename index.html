@@ -477,14 +477,23 @@ function playClips(keys){
 }
 
 /* ============ 听力复习：题目 + 答案 连续播放 ============ */
-const LS={ti:'all',zh:false,playing:false,cur:null};
+const LS={ti:'all',zh:false,playing:false,cur:null,loop:true,sleep:0,deadline:0};
+try{const p=JSON.parse(localStorage.getItem('civique-listen')||'{}');if(typeof p.loop==='boolean')LS.loop=p.loop;if(typeof p.sleep==='number')LS.sleep=p.sleep}catch(e){}
+function lsSave(){try{localStorage.setItem('civique-listen',JSON.stringify({loop:LS.loop,sleep:LS.sleep}))}catch(e){}}
+// 网站版（GitHub Pages）有预先拼好的长音频：锁屏也能继续播放、循环
+const LISTEN_CUES={"t0": [["0-0", 0.0], ["0-1", 9.39], ["0-2", 19.04], ["0-3", 27.51], ["0-4", 37.24], ["0-5", 45.89], ["0-6", 55.15], ["0-7", 64.46], ["0-8", 76.3], ["0-9", 88.82], ["0-10", 102.03], ["0-11", 109.38], ["0-12", 121.06], ["0-13", 135.07], ["0-14", 143.63], ["0-15", 154.45], ["0-16", 160.42], ["0-17", 170.15], ["0-18", 177.26], ["0-19", 183.78], ["0-20", 191.91], ["0-21", 203.75], ["0-22", 217.45], ["0-23", 225.85], ["0-24", 235.91], ["0-25", 248.28], ["0-26", 255.07], ["0-27", 266.05], ["0-28", 275.88], ["0-29", 285.97], ["0-30", 294.76], ["0-31", 305.35], ["0-32", 316.93], ["0-33", 328.7], ["0-34", 337.3], ["0-35", 349.83], ["0-36", 360.83], ["0-37", 367.24], ["0-38", 376.47], ["0-39", 386.69]], "t1": [["1-0", 0.0], ["1-1", 9.23], ["1-2", 24.18], ["1-3", 30.55], ["1-4", 38.03], ["1-5", 47.08], ["1-6", 55.71], ["1-7", 65.54], ["1-8", 77.12], ["1-9", 83.51], ["1-10", 89.66], ["1-11", 100.64], ["1-12", 107.97], ["1-13", 117.77], ["1-14", 124.24], ["1-15", 132.38], ["1-16", 142.13], ["1-17", 149.78], ["1-18", 159.26], ["1-19", 165.38], ["1-20", 177.18], ["1-21", 186.93], ["1-22", 194.36], ["1-23", 202.91], ["1-24", 207.93], ["1-25", 215.41], ["1-26", 223.05], ["1-27", 229.66], ["1-28", 239.08], ["1-29", 246.11], ["1-30", 251.21], ["1-31", 257.06], ["1-32", 266.29], ["1-33", 272.91], ["1-34", 283.32], ["1-35", 293.39], ["1-36", 301.13], ["1-37", 308.8], ["1-38", 315.8], ["1-39", 323.33], ["1-40", 330.89], ["1-41", 339.62], ["1-42", 347.31], ["1-43", 358.99], ["1-44", 365.56], ["1-45", 372.15], ["1-46", 379.23], ["1-47", 385.77], ["1-48", 393.26], ["1-49", 405.36]], "t2": [["2-0", 0.0], ["2-1", 8.29], ["2-2", 17.94], ["2-3", 29.02], ["2-4", 37.34], ["2-5", 45.24], ["2-6", 58.18], ["2-7", 69.5], ["2-8", 78.91], ["2-9", 88.22], ["2-10", 98.37], ["2-11", 108.28], ["2-12", 119.36], ["2-13", 126.39], ["2-14", 133.06], ["2-15", 141.79], ["2-16", 152.35], ["2-17", 161.17], ["2-18", 171.03], ["2-19", 181.96], ["2-20", 194.29], ["2-21", 200.77], ["2-22", 212.11], ["2-23", 221.55], ["2-24", 228.28], ["2-25", 236.83], ["2-26", 244.96], ["2-27", 255.44], ["2-28", 264.68], ["2-29", 273.38], ["2-30", 282.61], ["2-31", 292.26], ["2-32", 303.32], ["2-33", 308.49], ["2-34", 318.65], ["2-35", 325.81], ["2-36", 332.73], ["2-37", 339.62]], "t3": [["3-0", 0.0], ["3-1", 6.09], ["3-2", 14.56], ["3-3", 22.62], ["3-4", 29.5], ["3-5", 38.73], ["3-6", 49.13], ["3-7", 55.72], ["3-8", 67.22], ["3-9", 80.66], ["3-10", 89.73], ["3-11", 99.46], ["3-12", 107.76], ["3-13", 116.47], ["3-14", 127.82], ["3-15", 135.4], ["3-16", 143.27], ["3-17", 151.22], ["3-18", 159.03], ["3-19", 168.64], ["3-20", 180.15], ["3-21", 187.63], ["3-22", 194.66], ["3-23", 201.41], ["3-24", 208.99], ["3-25", 218.9], ["3-26", 225.99], ["3-27", 232.75], ["3-28", 242.4], ["3-29", 248.39], ["3-30", 255.82], ["3-31", 263.66], ["3-32", 273.98], ["3-33", 281.59], ["3-34", 287.67], ["3-35", 293.82], ["3-36", 301.61], ["3-37", 308.63], ["3-38", 320.89], ["3-39", 328.76], ["3-40", 337.77], ["3-41", 343.25], ["3-42", 349.24], ["3-43", 354.66], ["3-44", 364.57], ["3-45", 373.75], ["3-46", 379.81], ["3-47", 385.47], ["3-48", 391.45]], "t4": [["4-0", 0.0], ["4-1", 7.72], ["4-2", 16.0], ["4-3", 23.9], ["4-4", 33.3], ["4-5", 42.37], ["4-6", 50.84], ["4-7", 58.65], ["4-8", 64.98], ["4-9", 71.41], ["4-10", 82.84], ["4-11", 90.45], ["4-12", 102.95], ["4-13", 113.04], ["4-14", 121.38], ["4-15", 130.65], ["4-16", 137.46], ["4-17", 149.98], ["4-18", 159.13], ["4-19", 167.79], ["4-20", 178.61], ["4-21", 191.21], ["4-22", 198.27], ["4-23", 207.09], ["4-24", 216.81], ["4-25", 224.46], ["4-26", 231.26], ["4-27", 236.75], ["4-28", 246.15], ["4-29", 253.3], ["4-30", 267.99], ["4-31", 276.04]], "all": [["0-0", 0.0], ["0-1", 9.39], ["0-2", 19.04], ["0-3", 27.51], ["0-4", 37.24], ["0-5", 45.89], ["0-6", 55.15], ["0-7", 64.46], ["0-8", 76.3], ["0-9", 88.82], ["0-10", 102.03], ["0-11", 109.38], ["0-12", 121.06], ["0-13", 135.07], ["0-14", 143.63], ["0-15", 154.45], ["0-16", 160.42], ["0-17", 170.15], ["0-18", 177.26], ["0-19", 183.78], ["0-20", 191.91], ["0-21", 203.75], ["0-22", 217.45], ["0-23", 225.85], ["0-24", 235.91], ["0-25", 248.28], ["0-26", 255.07], ["0-27", 266.05], ["0-28", 275.88], ["0-29", 285.97], ["0-30", 294.76], ["0-31", 305.35], ["0-32", 316.93], ["0-33", 328.7], ["0-34", 337.3], ["0-35", 349.83], ["0-36", 360.83], ["0-37", 367.24], ["0-38", 376.47], ["0-39", 386.69], ["1-0", 398.72], ["1-1", 407.95], ["1-2", 422.9], ["1-3", 429.27], ["1-4", 436.75], ["1-5", 445.8], ["1-6", 454.43], ["1-7", 464.26], ["1-8", 475.84], ["1-9", 482.23], ["1-10", 488.38], ["1-11", 499.36], ["1-12", 506.69], ["1-13", 516.49], ["1-14", 522.96], ["1-15", 531.1], ["1-16", 540.85], ["1-17", 548.5], ["1-18", 557.98], ["1-19", 564.1], ["1-20", 575.9], ["1-21", 585.65], ["1-22", 593.08], ["1-23", 601.63], ["1-24", 606.65], ["1-25", 614.13], ["1-26", 621.77], ["1-27", 628.38], ["1-28", 637.8], ["1-29", 644.83], ["1-30", 649.93], ["1-31", 655.78], ["1-32", 665.01], ["1-33", 671.63], ["1-34", 682.04], ["1-35", 692.11], ["1-36", 699.85], ["1-37", 707.52], ["1-38", 714.52], ["1-39", 722.05], ["1-40", 729.61], ["1-41", 738.34], ["1-42", 746.03], ["1-43", 757.71], ["1-44", 764.28], ["1-45", 770.87], ["1-46", 777.95], ["1-47", 784.49], ["1-48", 791.97], ["1-49", 804.08], ["2-0", 811.08], ["2-1", 819.37], ["2-2", 829.02], ["2-3", 840.11], ["2-4", 848.42], ["2-5", 856.32], ["2-6", 869.26], ["2-7", 880.58], ["2-8", 889.99], ["2-9", 899.3], ["2-10", 909.45], ["2-11", 919.36], ["2-12", 930.44], ["2-13", 937.47], ["2-14", 944.14], ["2-15", 952.87], ["2-16", 963.44], ["2-17", 972.25], ["2-18", 982.11], ["2-19", 993.04], ["2-20", 1005.38], ["2-21", 1011.85], ["2-22", 1023.19], ["2-23", 1032.63], ["2-24", 1039.36], ["2-25", 1047.91], ["2-26", 1056.04], ["2-27", 1066.53], ["2-28", 1075.76], ["2-29", 1084.46], ["2-30", 1093.7], ["2-31", 1103.34], ["2-32", 1114.4], ["2-33", 1119.57], ["2-34", 1129.73], ["2-35", 1136.89], ["2-36", 1143.82], ["2-37", 1150.7], ["3-0", 1160.69], ["3-1", 1166.78], ["3-2", 1175.25], ["3-3", 1183.31], ["3-4", 1190.19], ["3-5", 1199.42], ["3-6", 1209.82], ["3-7", 1216.41], ["3-8", 1227.91], ["3-9", 1241.35], ["3-10", 1250.42], ["3-11", 1260.15], ["3-12", 1268.45], ["3-13", 1277.16], ["3-14", 1288.51], ["3-15", 1296.09], ["3-16", 1303.96], ["3-17", 1311.91], ["3-18", 1319.72], ["3-19", 1329.33], ["3-20", 1340.84], ["3-21", 1348.32], ["3-22", 1355.35], ["3-23", 1362.1], ["3-24", 1369.68], ["3-25", 1379.59], ["3-26", 1386.67], ["3-27", 1393.44], ["3-28", 1403.09], ["3-29", 1409.08], ["3-30", 1416.51], ["3-31", 1424.35], ["3-32", 1434.67], ["3-33", 1442.28], ["3-34", 1448.36], ["3-35", 1454.51], ["3-36", 1462.3], ["3-37", 1469.32], ["3-38", 1481.58], ["3-39", 1489.45], ["3-40", 1498.46], ["3-41", 1503.94], ["3-42", 1509.93], ["3-43", 1515.35], ["3-44", 1525.26], ["3-45", 1534.44], ["3-46", 1540.5], ["3-47", 1546.16], ["3-48", 1552.14], ["4-0", 1559.62], ["4-1", 1567.34], ["4-2", 1575.62], ["4-3", 1583.52], ["4-4", 1592.92], ["4-5", 1601.99], ["4-6", 1610.47], ["4-7", 1618.27], ["4-8", 1624.6], ["4-9", 1631.04], ["4-10", 1642.46], ["4-11", 1650.07], ["4-12", 1662.57], ["4-13", 1672.66], ["4-14", 1681.01], ["4-15", 1690.27], ["4-16", 1697.08], ["4-17", 1709.6], ["4-18", 1718.75], ["4-19", 1727.41], ["4-20", 1738.23], ["4-21", 1750.83], ["4-22", 1757.9], ["4-23", 1766.71], ["4-24", 1776.43], ["4-25", 1784.08], ["4-26", 1790.88], ["4-27", 1796.37], ["4-28", 1805.78], ["4-29", 1812.92], ["4-30", 1827.61], ["4-31", 1835.66]]};
+const TRACKS_OK=/\.github\.io$/.test(location.hostname);
+let TRK=null;
 const IC_HEAD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2" fill="currentColor"/><rect x="16" y="14" width="5" height="7" rx="2" fill="currentColor"/></svg>';
 function renderListen(){
   const chip=(v,lab)=>`<button class="chipbtn ${String(LS.ti)===String(v)?'on':''}" data-lti="${v}">${lab}</button>`;
   let h=`<div class="page"><h1 style="margin-bottom:2px">听力复习</h1><p class="lead" style="margin-bottom:6px">题目 + 正确答案，可以连续播放。点任意一题就从那里开始听。</p></div>
   <div class="lbar"><div class="fbrow">${chip('all','全部')}${THEME_SHORT.map((t,i)=>chip(i,(i+1)+' '+t)).join('')}</div>
    <div class="fbrow"><button class="btn small ${LS.playing?'danger':''}" id="lsPlay">${LS.playing?'■ 停止':'▶ 连续播放'}</button>
-   <button class="btn ghost small" id="lsZh">${LS.zh?'隐藏中文':'显示中文'}</button></div></div>`;
+   <button class="btn ghost small" id="lsZh">${LS.zh?'隐藏中文':'显示中文'}</button>
+   <button class="chipbtn ${LS.loop?'on':''}" id="lsLoop">🔁 循环${LS.loop?'：开':'：关'}</button></div>
+   <div class="fbrow"><span class="note">定时停止</span>${[0,15,30,60].map(m=>`<button class="chipbtn ${LS.sleep===m?'on':''}" data-lsleep="${m}">${m?m+' 分钟':'不定时'}</button>`).join('')}</div>
+   ${TRACKS_OK?'<p class="note" style="margin:0">锁屏后会继续播放。</p>':'<p class="note" style="margin:0">这个版本锁屏后会暂停；想锁屏听，请用网站版 twang84861722.github.io/civique-cr。</p>'}</div>`;
   DATA.forEach((th,ti)=>{
     if(LS.ti!=='all'&&+LS.ti!==ti)return;
     h+=`<div style="--u:var(--t${ti})"><div class="lsec">${ti+1}. ${th.zh}</div>`;
@@ -509,25 +518,64 @@ function lsMark(id){
   if(r){r.classList.add('now');try{r.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){r.scrollIntoView()}}
 }
 const lsKeys=id=>id[0]==='v'?[id]:[id+'-q',id+'-a'];
-async function lsRun(startId){
+function lsDue(){return LS.deadline&&Date.now()>LS.deadline}
+function trackName(){return LS.ti==='all'?'all':'t'+LS.ti}
+function lsRun(startId){
+  LS.playing=true;LS.deadline=LS.sleep?Date.now()+LS.sleep*60000:0;
+  const b=$('#lsPlay');if(b){b.textContent='■ 停止';b.classList.add('danger')}
+  track('listen-start','听力复习连续播放');
+  if(TRACKS_OK)return lsRunTrack(startId);
+  return lsRunWeb(startId);
+}
+async function lsRunWeb(startId){
+  const run=LS.run=(LS.run||0)+1;            // 旧循环在 await 之后发现 run 变了就退出
   const ids=[...document.querySelectorAll('[data-lid]')].map(x=>x.dataset.lid);
   let i=Math.max(0,ids.indexOf(startId||LS.cur||ids[0]));
-  LS.playing=true;const b=$('#lsPlay');if(b){b.textContent='■ 停止';b.classList.add('danger')}
-  track('listen-start','听力复习连续播放');
-  for(;i<ids.length&&LS.playing;i++){
+  while(LS.playing&&run===LS.run){
+    if(i>=ids.length){if(!LS.loop)break;i=0}
+    if(lsDue())break;
     lsMark(ids[i]);
     await playClips(lsKeys(ids[i]));
-    if(!LS.playing)break;
+    if(!LS.playing||run!==LS.run)return;
     await new Promise(r=>setTimeout(r,700));
+    i++;
   }
-  lsStop();
+  if(run===LS.run)lsStop();
+}
+function lsRunTrack(startId){
+  const name=trackName(),cues=LISTEN_CUES[name]||[];
+  const id=(startId||LS.cur||'');const c=cues.find(x=>x[0]===id.replace(/-[qa]$/,''));
+  const start=c?c[1]:0;
+  stopAudio();
+  try{if(navigator.audioSession)navigator.audioSession.type='playback'}catch(e){}
+  if(!TRK){
+    TRK=new Audio();TRK.preload='auto';
+    TRK.addEventListener('timeupdate',()=>{
+      if(!LS.playing)return;
+      if(lsDue()){lsStop();return}
+      const cs=LISTEN_CUES[TRK.dataset.name]||[];let cur=null;
+      for(const x of cs){if(x[1]<=TRK.currentTime+0.05)cur=x[0];else break}
+      if(cur&&cur!==LS.cur&&document.visibilityState==='visible')lsMark(cur);
+    });
+    TRK.addEventListener('ended',()=>{if(!TRK.loop)lsStop()});
+    TRK.addEventListener('error',()=>{if(LS.playing){audioNote('长音频加载失败，改为逐段播放',true);lsRunWeb(LS.cur)}});
+  }
+  if(TRK.dataset.name!==name){TRK.src='audio/listen-'+name+'.m4a';TRK.dataset.name=name}
+  TRK.loop=LS.loop;
+  const go=()=>{try{TRK.currentTime=start}catch(e){}};
+  if(TRK.readyState>=1)go();else TRK.addEventListener('loadedmetadata',go,{once:true});
+  if('mediaSession' in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:'Civique CR 听力复习',artist:LS.ti==='all'?'全部主题':DATA[LS.ti].zh,album:'examen civique'})}catch(e){}}
+  TRK.play().catch(()=>{audioNote('播放被浏览器阻止了，请再点一次',true);lsStop()});
 }
 function lsStop(){
-  LS.playing=false;stopAudio();
+  LS.playing=false;LS.run=(LS.run||0)+1;LS.deadline=0;stopAudio();
+  if(TRK)try{TRK.pause()}catch(e){}
   const b=$('#lsPlay');if(b){b.textContent='▶ 连续播放';b.classList.remove('danger')}
 }
 function listenClick(t){
   if(t.dataset.lti!=null){lsStop();LS.ti=t.dataset.lti==='all'?'all':+t.dataset.lti;LS.cur=null;renderApp();return true}
+  if(t.id==='lsLoop'){LS.loop=!LS.loop;lsSave();if(TRK)TRK.loop=LS.loop;t.classList.toggle('on',LS.loop);t.textContent='🔁 循环'+(LS.loop?'：开':'：关');return true}
+  if(t.dataset.lsleep!=null){LS.sleep=+t.dataset.lsleep;lsSave();if(LS.playing)LS.deadline=LS.sleep?Date.now()+LS.sleep*60000:0;document.querySelectorAll('[data-lsleep]').forEach(x=>x.classList.toggle('on',x===t));return true}
   if(t.id==='lsZh'){LS.zh=!LS.zh;renderApp();if(LS.cur)lsMark(LS.cur);return true}
   if(t.id==='lsPlay'){if(LS.playing)lsStop();else lsRun();return true}
   if(t.dataset.lplay){lsStop();const k=t.dataset.lplay;lsMark(k.slice(0,-2));playClips([k]);return true}
@@ -965,7 +1013,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-05 19:21';
+const BUILD='2026-10-05 19:29';
 const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
