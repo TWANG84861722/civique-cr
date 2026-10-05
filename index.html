@@ -207,6 +207,20 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.2}
 .fblink{font-size:13px;color:var(--muted);text-decoration:underline;justify-self:start;padding:4px 0}
 .fbta{width:100%;height:110px;font:inherit;font-size:15px;padding:10px 12px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--ink)}
 a.btn{text-decoration:none}
+.tabs div{grid-template-columns:repeat(5,1fr)!important}
+.lbar{position:sticky;top:calc(env(safe-area-inset-top,0px) + 58px);z-index:4;background:var(--bg);padding-block:10px;display:grid;gap:10px;border-bottom:2px solid var(--line)}
+.lbar .fbrow{flex-wrap:wrap}
+.lsec{font-family:var(--display);font-weight:800;font-size:17px;margin:22px 0 8px;color:var(--u)}
+.lrow{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;display:grid;gap:4px;cursor:pointer}
+.lrow.now{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 30%,transparent)}
+.lrow .lq{font-size:16px;font-weight:600}
+.lrow .la{font-size:15px;color:var(--ok);font-weight:700}
+.lrow .lz{font-size:13px;color:var(--muted)}
+.lrow .lbtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.lrow .lbtns button.mini{font-size:13px;font-weight:700;padding:5px 10px;border-radius:10px;border:2px solid var(--line);background:var(--bg)}
+.lrow .num{font-size:12px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+.vrow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 12px;background:var(--surface);border:2px solid var(--line);border-radius:12px;margin-bottom:6px;cursor:pointer}
+.vrow.now{border-color:var(--gold)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 
@@ -448,9 +462,9 @@ const clipText=k=>{if(k[0]==='v'){const [ti,vi]=k.slice(1).split('-');const p=DA
 function playClips(keys){
   stopAudio();
   const tok=PLAYTOK, ctx=actx();
-  if(!ctx){audioNote('这个浏览器不支持网页音频，改用设备语音',true);speak(keys.map(clipText).join(' '));return}
+  if(!ctx){audioNote('这个浏览器不支持网页音频，改用设备语音',true);speak(keys.map(clipText).join(' '));return Promise.resolve()}
   const tis=[...new Set(keys.map(clipTheme))];
-  Promise.all(tis.map(t=>loadClips(t))).then(async()=>{
+  return Promise.all(tis.map(t=>loadClips(t))).then(async()=>{
     for(let i=0;i<keys.length;i++){
       if(tok!==PLAYTOK)return;
       let buf=null,why='';try{buf=await clipBuf(keys[i]);if(!buf)why='这段没有录音'}catch(e){why='解码失败：'+((e&&e.message)||e||'未知错误')}
@@ -461,6 +475,71 @@ function playClips(keys){
     }
   },e=>{audioNote('录音下载失败（'+((e&&e.message)||e)+'），改用设备语音',true);speak(keys.map(clipText).join(' '))});
 }
+
+/* ============ 听力复习：题目 + 答案 连续播放 ============ */
+const LS={ti:'all',zh:false,playing:false,cur:null};
+const IC_HEAD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="5" height="7" rx="2" fill="currentColor"/><rect x="16" y="14" width="5" height="7" rx="2" fill="currentColor"/></svg>';
+function renderListen(){
+  const chip=(v,lab)=>`<button class="chipbtn ${String(LS.ti)===String(v)?'on':''}" data-lti="${v}">${lab}</button>`;
+  let h=`<div class="page"><h1 style="margin-bottom:2px">听力复习</h1><p class="lead" style="margin-bottom:6px">题目 + 正确答案，可以连续播放。点任意一题就从那里开始听。</p></div>
+  <div class="lbar"><div class="fbrow">${chip('all','全部')}${THEME_SHORT.map((t,i)=>chip(i,(i+1)+' '+t)).join('')}</div>
+   <div class="fbrow"><button class="btn small ${LS.playing?'danger':''}" id="lsPlay">${LS.playing?'■ 停止':'▶ 连续播放'}</button>
+   <button class="btn ghost small" id="lsZh">${LS.zh?'隐藏中文':'显示中文'}</button></div></div>`;
+  DATA.forEach((th,ti)=>{
+    if(LS.ti!=='all'&&+LS.ti!==ti)return;
+    h+=`<div style="--u:var(--t${ti})"><div class="lsec">${ti+1}. ${th.zh}</div>`;
+    th.q.forEach((q,qi)=>{
+      h+=`<div class="lrow ${LS.cur===q.id?'now':''}" data-lid="${q.id}">
+        <span class="num">${q.id} · 第 ${qi+1} 题</span>
+        <div class="lq" lang="fr">${esc(q.q)}</div>
+        <div class="la" lang="fr">${esc(q.o[0])}</div>
+        ${LS.zh?`<div class="lz">${esc(q.zh)}</div><div class="lz">${esc(q.e)}</div>`:''}
+        <div class="lbtns"><button class="mini" data-lplay="${q.id}-q">▶ 题目</button><button class="mini" data-lplay="${q.id}-a">▶ 答案</button><button class="fblink" data-report="${q.id}">这题有问题？</button></div></div>`;
+    });
+    h+=`<div class="lsec" style="font-size:15px">词汇</div>`;
+    th.v.forEach((p,vi)=>{h+=`<div class="vrow ${LS.cur==='v'+ti+'-'+vi?'now':''}" data-lid="v${ti}-${vi}"><span lang="fr">${esc(p[0])}</span><span class="lz">${esc(p[1])}</span></div>`});
+    h+='</div>';
+  });
+  return h;
+}
+function lsMark(id){
+  LS.cur=id;
+  document.querySelectorAll('.lrow.now,.vrow.now').forEach(x=>x.classList.remove('now'));
+  const r=document.querySelector(`[data-lid="${id}"]`);
+  if(r){r.classList.add('now');try{r.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){r.scrollIntoView()}}
+}
+const lsKeys=id=>id[0]==='v'?[id]:[id+'-q',id+'-a'];
+async function lsRun(startId){
+  const ids=[...document.querySelectorAll('[data-lid]')].map(x=>x.dataset.lid);
+  let i=Math.max(0,ids.indexOf(startId||LS.cur||ids[0]));
+  LS.playing=true;const b=$('#lsPlay');if(b){b.textContent='■ 停止';b.classList.add('danger')}
+  track('listen-start','听力复习连续播放');
+  for(;i<ids.length&&LS.playing;i++){
+    lsMark(ids[i]);
+    await playClips(lsKeys(ids[i]));
+    if(!LS.playing)break;
+    await new Promise(r=>setTimeout(r,700));
+  }
+  lsStop();
+}
+function lsStop(){
+  LS.playing=false;stopAudio();
+  const b=$('#lsPlay');if(b){b.textContent='▶ 连续播放';b.classList.remove('danger')}
+}
+function listenClick(t){
+  if(t.dataset.lti!=null){lsStop();LS.ti=t.dataset.lti==='all'?'all':+t.dataset.lti;LS.cur=null;renderApp();return true}
+  if(t.id==='lsZh'){LS.zh=!LS.zh;renderApp();if(LS.cur)lsMark(LS.cur);return true}
+  if(t.id==='lsPlay'){if(LS.playing)lsStop();else lsRun();return true}
+  if(t.dataset.lplay){lsStop();const k=t.dataset.lplay;lsMark(k.slice(0,-2));playClips([k]);return true}
+  return false;
+}
+document.addEventListener('click',ev=>{
+  if(L||tab!=='listen')return;
+  if(ev.target.closest('button'))return;          // 按钮由各自的处理函数处理
+  const r=ev.target.closest('[data-lid]');if(!r)return;
+  const id=r.dataset.lid;
+  if(LS.playing){lsStop();lsRun(id)}else{lsMark(id);playClips(lsKeys(id))}
+});
 
 /* ============ 页面 ============ */
 let tab='learn', L=null;
@@ -625,10 +704,10 @@ function showCrash(err){
 }
 function renderAppRaw(){
   const n=Object.keys(S.miss).length;
-  const body=tab==='learn'?renderLearn():tab==='exam'?renderExamTab():tab==='miss'?renderMiss():renderMe();
+  const body=tab==='learn'?renderLearn():tab==='listen'?renderListen():tab==='exam'?renderExamTab():tab==='miss'?renderMiss():renderMe();
   const t=(k,ic,lab,extra='')=>`<button class="tab" data-tab="${k}" ${tab===k?'aria-current="page"':''}>${ic}${lab}${extra}</button>`;
   $('#root').innerHTML=`<div class="app">${body}</div>
-  <nav class="tabs" aria-label="主导航"><div>${t('learn',IC.path,'学习')}${t('exam',IC.exam,'模拟考试')}${t('miss',IC.redo,'错题本',n?`<span class="badge">${n}</span>`:'')}${t('me',IC.user,'我的')}</div></nav><div id="layer"></div>`;
+  <nav class="tabs" aria-label="主导航"><div>${t('learn',IC.path,'学习')}${t('listen',IC_HEAD,'听力')}${t('exam',IC.exam,'模拟考试')}${t('miss',IC.redo,'错题本',n?`<span class="badge">${n}</span>`:'')}${t('me',IC.user,'我的')}</div></nav><div id="layer"></div>`;
 }
 
 /* ============ 练习引擎 ============ */
@@ -759,6 +838,8 @@ function drawMatch(){
 document.addEventListener('click',ev=>{
   const t=ev.target.closest('button');if(!t)return;
   if(!L){
+    if(tab==='listen'&&listenClick(t))return;
+    if(t.dataset.tab&&LS.playing)lsStop();
     if(voiceClick(t))return;
     if(backupClick(t))return;
     if(t.id==='remindLater'){S.snooze=Date.now()+3*DAY;save();renderApp();return}
@@ -884,7 +965,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-05 19:13';
+const BUILD='2026-10-05 19:21';
 const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
