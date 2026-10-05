@@ -609,7 +609,7 @@ function topBar(){
 
 function renderLearn(){
   const total=Object.keys(Q).length, k=knownAll(), today=S.days[dstr()]||0, cur=currentId();
-  let h=topBar()+(STATS_ON?`<a class="langbar" href="fr/" lang="fr"><b>Version française</b><span>法语界面和解释，可以分享给不懂中文的朋友</span><i>→</i></a>`:'')+`<div class="mastery">
+  let h=topBar()+(STATS_ON?`<a class="langbar" href="fr/" lang="fr"><b>Version française</b><span>法语界面和解释，可以分享给不懂中文的朋友</span><i>→</i></a><a class="langbar" href="nat/"><b>入籍题库</b><span>naturalisation 考试的官方知识题，259 题</span><i>→</i></a>`:'')+`<div class="mastery">
     <div class="mrow"><b>题库掌握</b><span>${k} / ${total} 题</span></div><div class="bar"><i style="width:${k/total*100}%"></i></div>
     <div class="mrow"><b>今日目标</b><span>${Math.min(today,DAILY)} / ${DAILY} XP</span></div><div class="bar"><i style="width:${Math.min(100,today/DAILY*100)}%;background:var(--gold)"></i></div>
   </div>${backupBanner()}`;
@@ -1018,7 +1018,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-05 19:59';
+const BUILD='2026-10-05 20:23';
 const FB_TYPES=['录音读错','答案不对','翻译或解释有误','页面出错','功能建议','其他'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'录音读错':'页面出错',text:''};drawFeedback()}
