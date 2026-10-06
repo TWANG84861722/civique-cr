@@ -610,7 +610,7 @@ function topBar(){
 
 function renderLearn(){
   const total=Object.keys(Q).length, k=knownAll(), today=S.days[dstr()]||0, cur=currentId();
-  let h=topBar()+(STATS_ON?`<a class="langbar" href="../" lang="zh"><b>中文版</b><span>Interface et explications en chinois</span><i>→</i></a>`:'')+`<div class="mastery">
+  let h=topBar()+(STATS_ON?`<a class="langbar" href="../" lang="zh"><b>中文版</b><span>Interface et explications en chinois</span><i>→</i></a><a class="langbar" href="../nat/fr/"><b>Naturalisation</b><span>Les 259 questions officielles de l’examen pour devenir français</span><i>→</i></a>`:'')+`<div class="mastery">
     <div class="mrow"><b>Questions maîtrisées</b><span>${k} / ${total}</span></div><div class="bar"><i style="width:${k/total*100}%"></i></div>
     <div class="mrow"><b>Objectif du jour</b><span>${Math.min(today,DAILY)} / ${DAILY} XP</span></div><div class="bar"><i style="width:${Math.min(100,today/DAILY*100)}%;background:var(--gold)"></i></div>
   </div>${backupBanner()}`;
@@ -1019,7 +1019,7 @@ function finishExam(){
 /* ============ 反馈问题：GitHub Issue / 邮件 / 复制发微信 ============ */
 const REPO='https://github.com/TWANG84861722/civique-cr';
 const MAIL=['twang8496','gmail.com'].join('@');   // 运行时拼出，减少被抓取
-const BUILD='2026-10-05 20:23';
+const BUILD='2026-10-06 12:20';
 const FB_TYPES=['Audio mal prononcé','Réponse fausse','Explication erronée','Bug','Suggestion','Autre'];
 let FB=null;
 function openFeedback(qid){FB={qid:qid||null,type:qid?'Audio mal prononcé':'Bug',text:''};drawFeedback()}
